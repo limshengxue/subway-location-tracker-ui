@@ -1,4 +1,6 @@
+import datetime
 import os
+import pytz
 import streamlit as st
 import folium
 from streamlit_folium import folium_static
@@ -149,8 +151,9 @@ def display_outlet_details(outlets: List[Outlet]):
     # Display selected outlet details
     if selected_outlet:
         st.subheader(selected_outlet.name)
-        st.write(f"**Address:** {selected_outlet.address}")
-        st.write(f"**Operating Hours:** {selected_outlet.operating_hours}")
+        st.markdown(f"**Address:**<br>{selected_outlet.address.replace('\n', '<br>')}", unsafe_allow_html=True)
+        st.markdown(f"**Operating Hours:**<br>{selected_outlet.operating_hours.replace('\n', '<br>')}", unsafe_allow_html=True)
+
         
         # Display nearby outlets from overlapping data
         if selected_outlet.all_overlapping:
@@ -187,8 +190,20 @@ def display_outlet_details(outlets: List[Outlet]):
 
 
 def display_outlets_list(outlets: List[Outlet]):
-    st.subheader("Outlets")
-        
+    # Convert to datetime object
+    utc_dt = datetime.datetime.strptime(st.session_state.outlet_data["last_updated"], "%Y-%m-%dT%H:%M:%S")
+
+    # Define the local timezone (e.g., 'America/New_York', 'Asia/Tokyo', etc.)
+    local_tz = pytz.timezone("Asia/Kuala_Lumpur")  # Change to your local timezone
+
+    # Convert UTC datetime to local timezone
+    utc_dt = pytz.utc.localize(utc_dt)
+    local_dt = utc_dt.astimezone(local_tz)
+
+    # Format it in a readable form
+    last_updated = local_dt.strftime("%d %b %Y %I:%M:%S %p")
+    st.write("Last updated on:", last_updated)
+
     # Search bar
     search_query = st.text_input("Search outlets", "")
         
