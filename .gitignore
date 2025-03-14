@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.env
+*.venv
+*.virtualenv
+
+# Streamlit
+.streamlit/
+.secrets.toml
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Logs & Cache
+logs/
+*.log
+*.out
+*.err
+*.pid
+*.gz
+*.swp
+*.swo
+.DS_Store
+
+# Virtual Environments
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Packages
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# IDEs
+.vscode/
+.idea/
+*.iml
