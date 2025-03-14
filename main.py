@@ -85,13 +85,25 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
         
         marker = folium.Marker(
             location=[outlet.latitude, outlet.longitude],
-            popup=folium.Popup(popup_html, max_width=300),
+            popup=folium.Popup(popup_html, max_width=300, show= selected_outlet_id == outlet.id),
             tooltip=folium.Tooltip(text=outlet.name, style=("background-color: #f0f0f0; padding: 5px; border-radius: 5px;")),
             icon=icon
         )
+        
+
         marker.add_to(markers)
 
     markers.add_to(m)
+
+    # zoom map to selected outlet
+    if selected_outlet_id:
+        selected_outlet = next((outlet for outlet in outlets if outlet.id == selected_outlet_id), None)
+        if selected_outlet:
+            margin = 0.02
+            m.fit_bounds(
+                [[selected_outlet.latitude - margin, selected_outlet.longitude - margin], 
+                 [selected_outlet.latitude + margin, selected_outlet.longitude + margin]]
+            )
 
     # Use st_folium to render the map and capture click events
     map_data = st_folium(
@@ -99,6 +111,8 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
         feature_group_to_add=markers,
         width=800,
         height=600,
+        use_container_width=True,
+        key="map",
         returned_objects=["last_object_clicked"]
     )
 
@@ -124,17 +138,7 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
                     #print(st.session_state.selected_outlet_id)
                     st.rerun()  # Rerun to update the map with the new selected outlet
 
-    
-    # If a specific outlet is selected, zoom to it
-    if selected_outlet_id:
-        for outlet in outlets:
-            if outlet.id == selected_outlet_id:
-                m.location = [outlet.latitude, outlet.longitude]
-                m.zoom_start = 18
-                print('zoomed')
-                break
-    
-    return m
+    return map_data
 
 # Function to display outlet details    
 def display_outlet_details(outlets: List[Outlet]):
@@ -151,8 +155,10 @@ def display_outlet_details(outlets: List[Outlet]):
     # Display selected outlet details
     if selected_outlet:
         st.subheader(selected_outlet.name)
-        st.markdown(f"**Address:**<br>{selected_outlet.address.replace('\n', '<br>')}", unsafe_allow_html=True)
-        st.markdown(f"**Operating Hours:**<br>{selected_outlet.operating_hours.replace('\n', '<br>')}", unsafe_allow_html=True)
+        if selected_outlet.address is not None:
+            st.markdown(f"**Address:**<br>{selected_outlet.address.replace('\n', '<br>')}", unsafe_allow_html=True)
+        if selected_outlet.operating_hours is not None:
+            st.markdown(f"**Operating Hours:**<br>{selected_outlet.operating_hours.replace('\n', '<br>')}", unsafe_allow_html=True)
 
         
         # Display nearby outlets from overlapping data
@@ -274,28 +280,6 @@ def main():
         # Create the map
         m = create_map(outlets, st.session_state.selected_outlet_id)
         
-        # Use st_folium with specific settings to prevent unnecessary reruns
-        map_data = st_folium(
-            m, 
-            width=725,
-            key="map",
-            # These settings help prevent reruns on map interactions
-            feature_group_to_add=None,
-            zoom=None,
-            returned_objects=["last_active_drawing"],
-            use_container_width=True
-        )
-        
-        # Check if a marker was clicked (not just map interaction)
-        if map_data and "last_active_drawing" in map_data and map_data["last_active_drawing"]:
-            # Get the marker name (which we set to outlet id)
-            clicked_id = map_data["last_active_drawing"].get("name")
-            
-            # Only update state and rerun if an actual marker was clicked
-            # and it's different from the currently selected outlet
-            if clicked_id and clicked_id != st.session_state.selected_outlet_id:
-                st.session_state.selected_outlet_id = clicked_id
-                st.rerun()
 
 if __name__ == "__main__":
     main()
