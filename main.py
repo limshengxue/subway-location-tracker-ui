@@ -67,7 +67,18 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
     
     # Create a feature group for markers
     markers = folium.FeatureGroup(name="Outlets")
-    
+
+    # get selected outlet overlapping outlets
+    overlapping_outlets_ids = []
+    if selected_outlet_id:
+        selected_outlet = next((outlet for outlet in outlets if outlet.id == selected_outlet_id), None)
+        if selected_outlet:
+            for overlap in selected_outlet.all_overlapping:
+                if overlap.get("outlet1").get("id") != selected_outlet_id:
+                    overlapping_outlets_ids.append(overlap.get("outlet1").get("id"))
+                if overlap.get("outlet2").get("id") != selected_outlet_id:
+                    overlapping_outlets_ids.append(overlap.get("outlet2").get("id"))
+
     # Add markers for each outlet
     for outlet in outlets:
         # Create a simple popup without JavaScript events
@@ -82,6 +93,10 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
         # If this is the selected outlet, use a different icon
         if selected_outlet_id and outlet.id == selected_outlet_id:
             icon = folium.Icon(color='red', icon='star', prefix='fa')
+        
+        # if this is a overlapping outlet, use a different icon
+        if outlet.id in overlapping_outlets_ids:
+            icon = folium.Icon(color='orange', icon='exclamation', prefix='fa')
         
         marker = folium.Marker(
             location=[outlet.latitude, outlet.longitude],
@@ -104,6 +119,16 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
                 [[selected_outlet.latitude - margin, selected_outlet.longitude - margin], 
                  [selected_outlet.latitude + margin, selected_outlet.longitude + margin]]
             )
+
+            # Add a geodesic circle with a 5 km radius
+            folium.Circle(
+                location=[selected_outlet.latitude, selected_outlet.longitude],
+                radius=5000,  # 5 km in meters
+                color='blue',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.2
+            ).add_to(m)
 
     # Use st_folium to render the map and capture click events
     map_data = st_folium(
