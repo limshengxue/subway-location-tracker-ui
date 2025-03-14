@@ -180,10 +180,32 @@ def display_outlet_details(outlets: List[Outlet]):
     # Display selected outlet details
     if selected_outlet:
         st.subheader(selected_outlet.name)
+        
         if selected_outlet.address is not None:
             st.markdown(f"**Address:**<br>{selected_outlet.address.replace('\n', '<br>')}", unsafe_allow_html=True)
+        else:
+            st.markdown("**Address:**<br>Not available", unsafe_allow_html=True)
+
+         # Add a Waze navigation button
+        if selected_outlet.waze_link:
+            st.markdown(
+                f"""
+                <a href='{selected_outlet.waze_link}' target='_blank'>
+                    <img src='https://www.waze.com/favicon.ico' width='16' height='16' style='vertical-align: middle;'>
+                    Navigate with Waze
+                </a>
+                <br>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # add line break
+        st.markdown("<br>", unsafe_allow_html=True)
+
         if selected_outlet.operating_hours is not None:
             st.markdown(f"**Operating Hours:**<br>{selected_outlet.operating_hours.replace('\n', '<br>')}", unsafe_allow_html=True)
+        else:
+            st.markdown("**Operating Hours:**<br>Not available", unsafe_allow_html=True)
 
         
         # Display nearby outlets from overlapping data
@@ -215,9 +237,7 @@ def display_outlet_details(outlets: List[Outlet]):
                 nearby_df = nearby_df.sort_values("Distance (km)")
                 st.dataframe(nearby_df, hide_index=True)
     
-        # Add a Waze navigation button
-        if selected_outlet.waze_link:
-            st.markdown(f"[Navigate with Waze]({selected_outlet.waze_link})")
+       
 
 
 def display_outlets_list(outlets: List[Outlet]):
@@ -236,7 +256,7 @@ def display_outlets_list(outlets: List[Outlet]):
     st.write("Last updated on:", last_updated)
 
     # Search bar
-    search_query = st.text_input("Search outlets", "")
+    search_query = st.text_input("Search outlets", "", placeholder="Search by name or address")
         
     # Filter outlets based on search query
     filtered_outlets = outlets
