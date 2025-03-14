@@ -201,13 +201,26 @@ def display_outlets_list(outlets: List[Outlet]):
             if (outlet.address is not None and search_query.lower() in outlet.address.lower()) or
             search_query.lower() in outlet.name.lower()
         ]
-        
-    # Display outlets list
+
+    st.markdown(
+        """
+        <style>
+        div.stButton > button {
+            white-space: pre-line; /* Ensures text wraps */
+            text-align: left; /* Aligns text to left */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     with st.container(height=400):
         for outlet in filtered_outlets:
-            if st.button(outlet.name, key=f"btn_{outlet.id}"):
+            button_label = f"**{outlet.name}**  \n{outlet.address}"
+            if st.button(button_label, key=f"btn_{outlet.id}", use_container_width=True):
                 st.session_state.selected_outlet_id = outlet.id
-                st.rerun()
+                st.rerun()    
+   
 
 # Main application
 def main():
