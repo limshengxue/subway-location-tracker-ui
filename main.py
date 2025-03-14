@@ -1,45 +1,20 @@
-import datetime
 import os
-import pytz
 import streamlit as st
 import folium
-from streamlit_folium import folium_static
 import requests
-import json
-from typing import List, Dict, Any
+from typing import List
 import pandas as pd
 from dotenv import load_dotenv
 from streamlit_folium import st_folium
+from models import Outlet
+from utils import get_last_updated_time
 
 # Set page configuration
 st.set_page_config(
-    page_title="Subway Outlet Map Viewer",
+    page_title="Subway Outlets Location Tracker",
     page_icon="🗺️",
     layout="wide"
 )
-
-# Define the data structure for outlets
-class Outlet:
-    def __init__(self, data: Dict[str, Any]):
-        self.id = data.get("id", "")
-        self.name = data.get("name", "")
-        self.address = data.get("address", "")
-        self.latitude = data.get("latitude", 0)
-        self.longitude = data.get("longitude", 0)
-        self.operating_hours = data.get("operating_hours", "")
-        self.waze_link = data.get("waze_link", "")
-        self.all_overlapping = data.get("all_overlapping", [])
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "address": self.address,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "operating_hours": self.operating_hours,
-            "waze_link": self.waze_link
-        }
 
 # Function to fetch data from backend
 def fetch_outlet_data():
@@ -52,15 +27,15 @@ def fetch_outlet_data():
         st.error(f"Error fetching data: {e}")
 
 # Function to create the map with outlet markers
-def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
+def create_map(outlets: List[Outlet], selected_outlet : Outlet):
     # Calculate the center of the map
     if outlets:
         center_lat = sum(outlet.latitude for outlet in outlets) / len(outlets)
         center_lng = sum(outlet.longitude for outlet in outlets) / len(outlets)
     else:
         # Default to Kuala Lumpur if no outlets
-        center_lat = 3.139003
-        center_lng = 101.686855
+        center_lat = float(os.getenv("DEFAULT_CENTER_LAT"))
+        center_lng = float(os.getenv("DEFAULT_CENTER_LNG"))
 
     # Create a map
     m = folium.Map(location=[center_lat, center_lng], zoom_start=12)
@@ -70,14 +45,12 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
 
     # get selected outlet overlapping outlets
     overlapping_outlets_ids = []
-    if selected_outlet_id:
-        selected_outlet = next((outlet for outlet in outlets if outlet.id == selected_outlet_id), None)
-        if selected_outlet:
-            for overlap in selected_outlet.all_overlapping:
-                if overlap.get("outlet1").get("id") != selected_outlet_id:
-                    overlapping_outlets_ids.append(overlap.get("outlet1").get("id"))
-                if overlap.get("outlet2").get("id") != selected_outlet_id:
-                    overlapping_outlets_ids.append(overlap.get("outlet2").get("id"))
+    if selected_outlet:
+        for overlap in selected_outlet.all_overlapping:
+            if overlap.get("outlet1").get("id") != selected_outlet.id:
+                overlapping_outlets_ids.append(overlap.get("outlet1").get("id"))
+            if overlap.get("outlet2").get("id") != selected_outlet.id:
+                overlapping_outlets_ids.append(overlap.get("outlet2").get("id"))
 
     # Add markers for each outlet
     for outlet in outlets:
@@ -91,44 +64,44 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
         icon = folium.Icon(color='blue', icon='store', prefix='fa')
     
         # If this is the selected outlet, use a different icon
-        if selected_outlet_id and outlet.id == selected_outlet_id:
+        if selected_outlet and outlet.id == selected_outlet.id:
             icon = folium.Icon(color='red', icon='star', prefix='fa')
         
         # if this is a overlapping outlet, use a different icon
         if outlet.id in overlapping_outlets_ids:
             icon = folium.Icon(color='orange', icon='exclamation', prefix='fa')
         
+        # create the marker
         marker = folium.Marker(
             location=[outlet.latitude, outlet.longitude],
-            popup=folium.Popup(popup_html, max_width=300, show= selected_outlet_id == outlet.id),
+            popup=folium.Popup(popup_html, max_width=300),
             tooltip=folium.Tooltip(text=outlet.name, style=("background-color: #f0f0f0; padding: 5px; border-radius: 5px;")),
             icon=icon
         )
         
-
+        # Add the marker to the feature group
         marker.add_to(markers)
 
+    # Add the feature group to the map
     markers.add_to(m)
 
     # zoom map to selected outlet
-    if selected_outlet_id:
-        selected_outlet = next((outlet for outlet in outlets if outlet.id == selected_outlet_id), None)
-        if selected_outlet:
-            margin = 0.02
-            m.fit_bounds(
-                [[selected_outlet.latitude - margin, selected_outlet.longitude - margin], 
-                 [selected_outlet.latitude + margin, selected_outlet.longitude + margin]]
-            )
+    if selected_outlet:
+        margin = 0.02
+        m.fit_bounds(
+            [[selected_outlet.latitude - margin, selected_outlet.longitude - margin], 
+            [selected_outlet.latitude + margin, selected_outlet.longitude + margin]]
+        )
 
-            # Add a geodesic circle with a 5 km radius
-            folium.Circle(
-                location=[selected_outlet.latitude, selected_outlet.longitude],
-                radius=5000,  # 5 km in meters
-                color='blue',
-                fill=True,
-                fill_color='blue',
-                fill_opacity=0.2
-            ).add_to(m)
+        # Add a geodesic circle with a 5 km radius
+        folium.Circle(
+            location=[selected_outlet.latitude, selected_outlet.longitude],
+            radius=5000,  # 5 km in meters
+            color='blue',
+            fill=True,
+            fill_color='blue',
+            fill_opacity=0.2
+        ).add_to(m)
 
     # Use st_folium to render the map and capture click events
     map_data = st_folium(
@@ -159,22 +132,16 @@ def create_map(outlets: List[Outlet], selected_outlet_id: str = None):
             for outlet in outlets:
                 if (abs(outlet.latitude - clicked_lat) < 0.0001 and 
                     abs(outlet.longitude - clicked_lng) < 0.0001):
-                    st.session_state.selected_outlet_id = outlet.id
-                    #print(st.session_state.selected_outlet_id)
-                    st.rerun()  # Rerun to update the map with the new selected outlet
+                    st.session_state.selected_outlet = outlet
+                    st.rerun()
 
     return map_data
 
 # Function to display outlet details    
-def display_outlet_details(outlets: List[Outlet]):
-    selected_outlet = next(
-                (o for o in outlets if o.id == st.session_state.selected_outlet_id), 
-                None
-            )
-    
+def display_outlet_details(selected_outlet: Outlet):
     # back button
     if st.button("Back"):
-        st.session_state.selected_outlet_id = None
+        st.session_state.selected_outlet = None
         st.rerun()
     
     # Display selected outlet details
@@ -236,24 +203,11 @@ def display_outlet_details(outlets: List[Outlet]):
                 nearby_df = pd.DataFrame(nearby_outlets)
                 nearby_df = nearby_df.sort_values("Distance (km)")
                 st.dataframe(nearby_df, hide_index=True)
-    
-       
-
 
 def display_outlets_list(outlets: List[Outlet]):
-    # Convert to datetime object
-    utc_dt = datetime.datetime.strptime(st.session_state.outlet_data["last_updated"], "%Y-%m-%dT%H:%M:%S")
+    last_updated = get_last_updated_time(st.session_state.outlet_data["last_updated"])
 
-    # Define the local timezone (e.g., 'America/New_York', 'Asia/Tokyo', etc.)
-    local_tz = pytz.timezone("Asia/Kuala_Lumpur")  # Change to your local timezone
-
-    # Convert UTC datetime to local timezone
-    utc_dt = pytz.utc.localize(utc_dt)
-    local_dt = utc_dt.astimezone(local_tz)
-
-    # Format it in a readable form
-    last_updated = local_dt.strftime("%d %b %Y %I:%M:%S %p")
-    st.write("Last updated on:", last_updated)
+    st.write("Data last updated on:", last_updated)
 
     # Search bar
     search_query = st.text_input("Search outlets", "", placeholder="Search by name or address")
@@ -284,7 +238,7 @@ def display_outlets_list(outlets: List[Outlet]):
         for outlet in filtered_outlets:
             button_label = f"**{outlet.name}**  \n{outlet.address}"
             if st.button(button_label, key=f"btn_{outlet.id}", use_container_width=True):
-                st.session_state.selected_outlet_id = outlet.id
+                st.session_state.selected_outlet = outlet
                 st.rerun()    
    
 
@@ -296,8 +250,8 @@ def main():
     st.title("Subway Outlets Location Tracker")
     
     # Initialize session state for the selected outlet
-    if "selected_outlet_id" not in st.session_state:
-        st.session_state.selected_outlet_id = None
+    if "selected_outlet" not in st.session_state:
+        st.session_state.selected_outlet = None
     
     # Layout with columns for sidebar and map
     col1, col2 = st.columns([1, 2])
@@ -316,14 +270,14 @@ def main():
     
     with col1:
         # Display details for selected outlet
-        if st.session_state.selected_outlet_id:
-            display_outlet_details(outlets)
+        if st.session_state.selected_outlet:
+            display_outlet_details(st.session_state.selected_outlet)
         else:
             display_outlets_list(outlets)
     
     with col2:
         # Create the map
-        m = create_map(outlets, st.session_state.selected_outlet_id)
+        m = create_map(outlets, st.session_state.selected_outlet)
         
 
 if __name__ == "__main__":
