@@ -1,14 +1,13 @@
 import datetime
-import os
 import pytz
-
+import os
 
 def get_last_updated_time(timestr):
-    # Convert to datetime object
-    utc_dt = datetime.datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%S")
+    # Convert to datetime object with microseconds
+    utc_dt = datetime.datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%S.%f")
 
     # Define the local timezone (e.g., 'America/New_York', 'Asia/Tokyo', etc.)
-    local_tz = pytz.timezone(os.getenv("LOCAL_TIMEZONE"))
+    local_tz = pytz.timezone(os.getenv("LOCAL_TIMEZONE", "UTC"))
 
     # Convert UTC datetime to local timezone
     utc_dt = pytz.utc.localize(utc_dt)

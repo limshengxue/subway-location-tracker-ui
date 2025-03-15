@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from streamlit_folium import st_folium
 from models import Outlet
 from utils import get_last_updated_time
+from qa import qa
 
 # Set page configuration
 st.set_page_config(
@@ -278,6 +279,13 @@ def main():
     with col2:
         # Create the map
         m = create_map(outlets, st.session_state.selected_outlet)
+    
+    # show divider
+    st.markdown("---")
+    
+    # Display qa
+    qa()
+
         
 
 if __name__ == "__main__":
