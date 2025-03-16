@@ -62,15 +62,26 @@ def create_map(outlets: List[Outlet], selected_outlet : Outlet):
             <p>{outlet.address}</p>
         </div>
         """
-        icon = folium.Icon(color='blue', icon='store', prefix='fa')
-    
-        # If this is the selected outlet, use a different icon
-        if selected_outlet and outlet.id == selected_outlet.id:
-            icon = folium.Icon(color='red', icon='star', prefix='fa')
-        
-        # if this is a overlapping outlet, use a different icon
-        if outlet.id in overlapping_outlets_ids:
-            icon = folium.Icon(color='orange', icon='exclamation', prefix='fa')
+
+        if selected_outlet:    # in selected outlet mode
+            # If this is the selected outlet, use a different icon
+            if outlet.id == selected_outlet.id:
+                icon = folium.Icon(color='red', icon='star', prefix='fa')
+            # if this is a overlapping outlet, use a different icon
+            elif outlet.id in overlapping_outlets_ids:
+                icon = folium.Icon(color='orange', icon='exclamation', prefix='fa')
+            else:
+                icon = folium.Icon(color='green', icon='store', prefix='fa')
+
+        else: # color code according to overlapping outlets
+
+            if len(outlet.all_overlapping) > 7:
+                icon = folium.Icon(color='red', icon='store', prefix='fa')
+            elif len(outlet.all_overlapping) > 5:
+                icon = folium.Icon(color='orange', icon='store', prefix='fa')
+            else:
+                icon = folium.Icon(color='green', icon='store', prefix='fa')
+
         
         # create the marker
         marker = folium.Marker(
@@ -279,6 +290,23 @@ def main():
     with col2:
         # Create the map
         m = create_map(outlets, st.session_state.selected_outlet)
+
+        # display legend
+        st.markdown(
+            """
+            #### Legend:
+            **📍 Default Mode (Overlapping Count Based)**
+            - 🟥 **Red (Store Icon)**: More than **7** overlapping outlets  
+            - 🟧 **Orange (Store Icon)**: More than **5** but **7 or fewer** overlapping outlets  
+            - 🟩 **Green (Store Icon)**: **5 or fewer** overlapping outlets  
+
+            **🔍 Selected Outlet Mode**  
+            - ⭐️ <span style="display:inline-block; width:15px; height:15px; background-color:red; margin-right:5px;"></span> **Selected Outlet**  
+            - ⚠️ <span style="display:inline-block; width:15px; height:15px; background-color:orange; margin-right:5px;"></span> **Overlapping Outlet**  
+            - 🏬 <span style="display:inline-block; width:15px; height:15px; background-color:green; margin-right:5px;"></span> **Other Outlets**  
+            """,
+            unsafe_allow_html=True,
+        )
     
     # show divider
     st.markdown("---")
